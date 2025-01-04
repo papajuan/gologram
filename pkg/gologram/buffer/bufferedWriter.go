@@ -15,7 +15,8 @@ import (
 var (
 	stdoutInstance *BufferedWriter
 	stderrInstance *BufferedWriter
-	once           sync.Once
+	onceOut        sync.Once
+	onceErr        sync.Once
 	defaultSize    = 256 * 1024       // Default buffer size (256 KB)
 	defaultFlush   = 30 * time.Second // Default flush interval
 )
@@ -33,19 +34,18 @@ type BufferedWriter struct {
 
 // Stdout returns the singleton instance of BufferedWriter for Stdout.
 func Stdout() *BufferedWriter {
-	return instance(os.Stdout, &stdoutInstance)
+	onceOut.Do(func() {
+		stdoutInstance = newBufferedWriter(defaultSize, defaultFlush, os.Stdout)
+	})
+	return stdoutInstance
 }
 
 // Stderr returns the singleton instance of BufferedWriter for Stderr.
 func Stderr() *BufferedWriter {
-	return instance(os.Stderr, &stderrInstance)
-}
-
-func instance(output *os.File, inst **BufferedWriter) *BufferedWriter {
-	once.Do(func() {
-		*inst = newBufferedWriter(defaultSize, defaultFlush, output)
+	onceErr.Do(func() {
+		stderrInstance = newBufferedWriter(defaultSize, defaultFlush, os.Stderr)
 	})
-	return *inst
+	return stderrInstance
 }
 
 // newBufferedWriter creates a new BufferedWriter with defaults if unspecified.

@@ -31,40 +31,40 @@ func (l *Logger) Named(msg string) *Logger {
 }
 
 func (l *Logger) Trace(msg string, fields ...*Field) {
-	buffer.Stdout().Write(l.output(msg, nil, fields...))
+	buffer.Stdout().Write(l.output(TRACE, msg, nil, fields...))
 }
 
 func (l *Logger) Debug(msg string, fields ...*Field) {
-	if l.level.level >= DEBUG {
-		buffer.Stdout().Write(l.output(msg, nil, fields...))
+	if l.level.level <= DEBUG {
+		buffer.Stdout().Write(l.output(DEBUG, msg, nil, fields...))
 	}
 }
 
 func (l *Logger) Info(msg string, fields ...*Field) {
-	if l.level.level >= INFO {
-		buffer.Stdout().Write(l.output(msg, nil, fields...))
+	if l.level.level <= INFO {
+		buffer.Stdout().Write(l.output(INFO, msg, nil, fields...))
 	}
 }
 
 func (l *Logger) Warn(msg string, fields ...*Field) {
-	if l.level.level >= WARN {
-		buffer.Stderr().Write(l.output(msg, nil, fields...))
+	if l.level.level <= WARN {
+		buffer.Stderr().Write(l.output(WARN, msg, nil, fields...))
 	}
 }
 
 func (l *Logger) Error(msg string, err *Err, fields ...*Field) {
-	if l.level.level >= ERROR {
-		buffer.Stderr().Write(l.output(msg, err, fields...))
+	if l.level.level <= ERROR {
+		buffer.Stderr().Write(l.output(ERROR, msg, err, fields...))
 	}
 }
 
-func (l *Logger) output(msg string, err *Err, fields ...*Field) []byte {
+func (l *Logger) output(lev Level, msg string, err *Err, fields ...*Field) []byte {
 	var builder strings.Builder
 	switch l.format {
 	case CONSOLE:
 		builder.WriteString(l.timeFormatFunc())
 		builder.WriteString("\t")
-		builder.WriteString(l.level.nameColored)
+		builder.WriteString(lev.StringColored())
 		if l.name != "" {
 			builder.WriteString("\t")
 			builder.WriteString(l.name)
@@ -88,7 +88,7 @@ func (l *Logger) output(msg string, err *Err, fields ...*Field) []byte {
 		builder.WriteRune('{')
 		builder.WriteString(`"timestamp":"` + l.timeFormatFunc() + `",`)
 		builder.WriteString(`"severity":"` + l.level.name + `",`)
-		builder.Write([]byte(`"message":"` + msg + `",`))
+		builder.Write([]byte(`"message":"` + msg + `"`))
 		if err != nil {
 			// TODO implement error and stack trace writing
 		}

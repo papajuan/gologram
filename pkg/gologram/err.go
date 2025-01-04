@@ -6,4 +6,9 @@ package gologram
  **/
 
 type Err struct {
+	err error
+}
+
+func NewErr(err error) *Err {
+	return &Err{err: err}
 }
