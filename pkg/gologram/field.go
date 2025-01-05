@@ -65,7 +65,7 @@ func (f *Field) WithBool(val bool) *Field {
 }
 
 func (f *Field) String() string {
-	return `"` + f.name + `":` + `"` + f.val + `"`
+	return `"` + f.name + `":"` + escapeJSON(f.val) + `"`
 }
 
 func StringField(name, val string) *Field {

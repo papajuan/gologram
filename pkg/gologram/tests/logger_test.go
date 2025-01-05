@@ -4,6 +4,7 @@ import (
 	"errors"
 	"gologram"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -54,4 +55,39 @@ func TestLogger(t *testing.T) {
 		go err.Error("Hello, World! ERROR", gologram.NewErr(errors.New("ereer")).WithCode(http.StatusUnprocessableEntity))
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func BenchmarkConcat(b *testing.B) {
+	b.Run("Concat with +10", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			res := "Hello, " + "World!"
+			res += "1"
+			res += "2"
+			res += "3"
+			res += "4"
+			res += "5"
+			res += "6"
+			res += "7"
+			res += "8"
+			res += "9"
+			res += "10"
+		}
+	})
+	b.Run("Concat with strings.Builder 10", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var builder strings.Builder
+			builder.WriteString("Hello, ")
+			builder.WriteString("World!")
+			builder.WriteString("1")
+			builder.WriteString("2")
+			builder.WriteString("3")
+			builder.WriteString("4")
+			builder.WriteString("5")
+			builder.WriteString("6")
+			builder.WriteString("7")
+			builder.WriteString("8")
+			builder.WriteString("9")
+			builder.WriteString("10")
+		}
+	})
 }

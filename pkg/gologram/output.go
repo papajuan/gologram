@@ -1,7 +1,6 @@
 package gologram
 
 import (
-	"encoding/json"
 	"strings"
 )
 
@@ -10,63 +9,56 @@ import (
  * @date    1/5/2025
  **/
 
-type Output struct {
-	Timestamp  string   `json:"timestamp"`
-	Severity   string   `json:"severity"`
-	Message    string   `json:"message"`
-	Stacktrace string   `json:"stacktrace"`
-	Caller     string   `json:"caller"`
-	Fields     []*Field `json:"fields"`
+type output struct {
+	fields []*Field
 }
 
-func NewOutput(ts, caller, severity, msg string, err *Err, fields ...*Field) *Output {
-	result := &Output{
-		Timestamp: ts,
-		Severity:  severity,
-		Message:   msg,
-		Caller:    caller,
-		Fields:    fields,
-	}
+func NewOutput(ts, caller, severity, msg string, err *Err, fields ...*Field) *output {
+	res := output{[]*Field{
+		NewField("timestamp").WithString(ts),
+		NewField("severity").WithString(severity),
+		NewField("caller").WithString(caller),
+		NewField("message").WithString(msg),
+	}}
 	if err != nil {
-		result.Stacktrace = err.String()
+		res.fields = append(res.fields, NewField("stacktrace").WithString(err.String()))
 	}
-	return result
+	res.fields = append(res.fields, fields...)
+	return &res
 }
 
-func (o *Output) JsonString() []byte {
-	res, err := json.Marshal(o)
-	if err != nil {
-		return []byte("{}\n")
-	}
-	res = append(res, '\n')
-	return res
-}
-
-func (o *Output) ConsoleString() []byte {
+func (o *output) JsonString() []byte {
 	var builder strings.Builder
-	builder.WriteString(o.Timestamp)
-	builder.WriteString("\t")
-	builder.WriteString(o.Severity)
-	if o.Caller != "" {
-		builder.WriteString("\t")
-		builder.WriteString(o.Caller)
-	}
-	builder.WriteString("\t")
-	builder.WriteString(o.Message)
-	if o.Stacktrace != "" {
-		builder.WriteString("\n")
-		builder.WriteString(o.Stacktrace)
-	}
-	if o.Fields != nil && len(o.Fields) > 0 {
-		builder.WriteString("\t{")
-		for i, field := range o.Fields {
+	if o.fields != nil && len(o.fields) > 0 {
+		for i, field := range o.fields {
 			builder.WriteString(field.String())
-			if i < len(o.Fields)-1 {
+			if i < len(o.fields)-1 {
 				builder.WriteString(",")
 			}
 		}
-		builder.WriteRune('}')
 	}
-	builder.WriteRune('\n')
+	return []byte("{" + builder.String() + "}\n")
+}
+
+func (o *output) ConsoleString() []byte {
+	var builder strings.Builder
+	builder.WriteString(o.fields[0].val + "\t" + o.fields[1].val)
+	if o.fields[2].val != "" {
+		builder.WriteString("\t" + o.fields[2].val)
+	}
+	builder.WriteString("\t" + o.fields[3].val)
+	if o.fields[4].val != "" {
+		builder.WriteString("\n" + o.fields[4].val)
+	}
+	if o.fields != nil && len(o.fields) > 0 {
+		builder.WriteString("\t")
+		for i, field := range o.fields {
+			builder.WriteString(field.String())
+			if i < len(o.fields)-1 {
+				builder.WriteString(",")
+			}
+		}
+	}
+	builder.WriteString("\n")
 	return []byte(builder.String())
 }

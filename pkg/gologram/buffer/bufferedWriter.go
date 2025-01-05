@@ -40,18 +40,19 @@ func Initialize() {
 
 // Stdout returns the singleton instance of BufferedWriter for Stdout.
 func Stdout() *BufferedWriter {
-	onceOut.Do(func() {
-		stdoutInstance = newBufferedWriter(defaultSize, defaultFlush, os.Stdout)
-	})
-	return stdoutInstance
+	return initBuff(&onceOut, &stdoutInstance, os.Stdout)
 }
 
 // Stderr returns the singleton instance of BufferedWriter for Stderr.
 func Stderr() *BufferedWriter {
-	onceErr.Do(func() {
-		stderrInstance = newBufferedWriter(defaultSize, defaultFlush, os.Stderr)
+	return initBuff(&onceErr, &stderrInstance, os.Stderr)
+}
+
+func initBuff(once *sync.Once, instance **BufferedWriter, output *os.File) *BufferedWriter {
+	once.Do(func() {
+		*instance = newBufferedWriter(defaultSize, defaultFlush, output)
 	})
-	return stderrInstance
+	return *instance
 }
 
 // newBufferedWriter creates a new BufferedWriter with defaults if unspecified.
