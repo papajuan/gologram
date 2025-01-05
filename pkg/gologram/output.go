@@ -10,20 +10,39 @@ import (
  **/
 
 type output struct {
-	fields []*Field
+	timestamp  string
+	severity   string
+	caller     string
+	message    string
+	stacktrace string
+	fields     []*Field
 }
 
-func NewOutput(ts, caller, severity, msg string, err *Err, fields ...*Field) *output {
-	res := output{[]*Field{
-		NewField("timestamp").WithString(ts),
-		NewField("severity").WithString(severity),
-		NewField("caller").WithString(caller),
-		NewField("message").WithString(msg),
-	}}
-	if err != nil {
-		res.fields = append(res.fields, NewField("stacktrace").WithString(err.String()))
+func NewOutput(format Format, ts, caller, severity, msg string, err *Err, fields ...*Field) *output {
+	var res output
+	if format == JSON {
+		res = output{fields: []*Field{
+			NewField("timestamp").WithString(ts),
+			NewField("severity").WithString(severity),
+			NewField("caller").WithString(caller),
+			NewField("message").WithString(msg),
+		}}
+		if err != nil {
+			res.fields = append(res.fields, NewField("stacktrace").WithString(err.String()))
+		}
+		res.fields = append(res.fields, fields...)
+	} else {
+		res = output{
+			timestamp: ts,
+			severity:  severity,
+			caller:    caller,
+			message:   msg,
+			fields:    fields,
+		}
+		if err != nil {
+			res.stacktrace = err.String()
+		}
 	}
-	res.fields = append(res.fields, fields...)
 	return &res
 }
 
@@ -42,13 +61,13 @@ func (o *output) JsonString() []byte {
 
 func (o *output) ConsoleString() []byte {
 	var builder strings.Builder
-	builder.WriteString(o.fields[0].val + "\t" + o.fields[1].val)
-	if o.fields[2].val != "" {
-		builder.WriteString("\t" + o.fields[2].val)
+	builder.WriteString(o.timestamp + "\t" + o.severity)
+	if o.caller != "" {
+		builder.WriteString("\t" + o.caller)
 	}
-	builder.WriteString("\t" + o.fields[3].val)
-	if o.fields[4].val != "" {
-		builder.WriteString("\n" + o.fields[4].val)
+	builder.WriteString("\t" + o.message)
+	if o.stacktrace != "" {
+		builder.WriteString("\n" + o.stacktrace)
 	}
 	if o.fields != nil && len(o.fields) > 0 {
 		builder.WriteString("\t")

@@ -61,8 +61,8 @@ func (l *Logger) Error(msg string, err *Err, fields ...*Field) {
 func (l *Logger) output(lev Level, msg string, err *Err, fields ...*Field) []byte {
 	switch l.format {
 	case JSON:
-		return NewOutput(l.timeFormatFunc(), l.name, lev.String(), msg, err, fields...).JsonString()
+		return NewOutput(JSON, l.timeFormatFunc(), l.name, lev.String(), msg, err, fields...).JsonString()
 	default:
-		return NewOutput(l.timeFormatFunc(), l.name, lev.StringColored(), msg, err, fields...).ConsoleString()
+		return NewOutput(CONSOLE, l.timeFormatFunc(), l.name, lev.StringColored(), msg, err, fields...).ConsoleString()
 	}
 }
