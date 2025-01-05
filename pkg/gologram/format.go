@@ -11,3 +11,12 @@ const (
 	CONSOLE Format = iota
 	JSON
 )
+
+func NewLogFormat(f string) Format {
+	switch f {
+	case "JSON":
+		return JSON
+	default:
+		return CONSOLE
+	}
+}

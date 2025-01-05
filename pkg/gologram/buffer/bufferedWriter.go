@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"bufio"
+	"errors"
 	"os"
 	"sync"
 	"time"
@@ -17,8 +18,8 @@ var (
 	stderrInstance *BufferedWriter
 	onceOut        sync.Once
 	onceErr        sync.Once
-	defaultSize    = 256 * 1024       // Default buffer size (256 KB)
-	defaultFlush   = 30 * time.Second // Default flush interval
+	defaultSize    = 512             // Default buffer size (512 B)
+	defaultFlush   = 5 * time.Second // Default flush interval
 )
 
 // BufferedWriter is a thread-safe buffered writer for os output.
@@ -30,6 +31,11 @@ type BufferedWriter struct {
 	ticker        *time.Ticker
 	stopChan      chan bool // Signals the background flusher to stop
 	doneChan      chan bool // Signals that the flusher has stopped
+}
+
+func Initialize() {
+	go Stdout()
+	go Stderr()
 }
 
 // Stdout returns the singleton instance of BufferedWriter for Stdout.
@@ -51,17 +57,17 @@ func Stderr() *BufferedWriter {
 // newBufferedWriter creates a new BufferedWriter with defaults if unspecified.
 func newBufferedWriter(bufferSize int, flushInterval time.Duration, output *os.File) *BufferedWriter {
 	if bufferSize <= 0 {
-		bufferSize = 256 * 1024
+		bufferSize = defaultSize
 	}
 	if flushInterval <= 0 {
-		flushInterval = 30 * time.Second
+		flushInterval = defaultFlush
 	}
 	bsw := &BufferedWriter{
 		writer:        bufio.NewWriterSize(output, bufferSize),
 		bufferSize:    bufferSize,
 		flushInterval: flushInterval,
-		stopChan:      make(chan bool, 1),
-		doneChan:      make(chan bool, 1),
+		stopChan:      make(chan bool, 1), // Buffered to prevent blocking
+		doneChan:      make(chan bool),    // Unbuffered for signal safety
 	}
 	go bsw.backgroundFlusher()
 	return bsw
@@ -91,13 +97,13 @@ func (bsw *BufferedWriter) flush() error {
 
 // backgroundFlusher periodically flushes the buffer.
 func (bsw *BufferedWriter) backgroundFlusher() {
-	defer close(bsw.doneChan)
+	defer close(bsw.doneChan) // Signal that the flusher has stopped
 	bsw.ticker = time.NewTicker(bsw.flushInterval)
 	defer bsw.ticker.Stop()
 	for {
 		select {
 		case <-bsw.ticker.C:
-			_ = bsw.flush() // Flush the buffer periodically
+			_ = bsw.flush() // Flush periodically
 		case <-bsw.stopChan:
 			_ = bsw.flush() // Final flush before stopping
 			return
@@ -107,7 +113,17 @@ func (bsw *BufferedWriter) backgroundFlusher() {
 
 // Sync flushes the buffer and stops the background flusher.
 func (bsw *BufferedWriter) Sync() error {
-	close(bsw.stopChan) // Signal the flusher to stop
-	<-bsw.doneChan      // Wait for the flusher to stop
-	return bsw.flush()  // Perform a final flush
+	if bsw.stopChan != nil {
+		select {
+		case bsw.stopChan <- true: // Signal the flusher to stop
+		case <-time.After(5 * time.Second): // Prevent blocking forever
+			return errors.New("failed to stop the background flusher: timeout")
+		}
+	}
+	select {
+	case <-bsw.doneChan: // Wait for the flusher to stop
+	case <-time.After(5 * time.Second): // Prevent blocking forever
+		return errors.New("timeout waiting for the flusher to stop")
+	}
+	return bsw.flush() // Perform a final flush
 }

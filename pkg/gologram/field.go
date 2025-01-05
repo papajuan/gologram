@@ -67,3 +67,15 @@ func (f *Field) WithBool(val bool) *Field {
 func (f *Field) String() string {
 	return `"` + f.name + `":` + `"` + f.val + `"`
 }
+
+func StringField(name, val string) *Field {
+	return &Field{name: name, val: val}
+}
+
+func ByteStringField(name string, val []byte) *Field {
+	return &Field{name: name, val: string(val)}
+}
+
+func AnyField(name string, val interface{}) *Field {
+	return &Field{name: name, val: fmt.Sprintf("%+v", val)}
+}

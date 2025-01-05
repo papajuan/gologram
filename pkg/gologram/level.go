@@ -11,6 +11,21 @@ type logLevel struct {
 	name        string
 }
 
+func NewLogLevel(level string) Level {
+	switch level {
+	case "INFO":
+		return INFO
+	case "WARN":
+		return WARN
+	case "ERROR":
+		return ERROR
+	case "TRACE":
+		return TRACE
+	default:
+		return DEBUG
+	}
+}
+
 func newLogLevel(l Level) *logLevel {
 	return &logLevel{level: l, nameColored: l.StringColored(), name: l.String()}
 }

@@ -2,7 +2,6 @@ package gologram
 
 import (
 	"gologram/buffer"
-	"strings"
 )
 
 /**
@@ -18,6 +17,7 @@ type Logger struct {
 }
 
 func newLogger(config *Config) *Logger {
+	buffer.Initialize()
 	return &Logger{
 		level:          config.level,
 		timeFormatFunc: config.timeFormatFunc,
@@ -59,41 +59,10 @@ func (l *Logger) Error(msg string, err *Err, fields ...*Field) {
 }
 
 func (l *Logger) output(lev Level, msg string, err *Err, fields ...*Field) []byte {
-	var builder strings.Builder
 	switch l.format {
-	case CONSOLE:
-		builder.WriteString(l.timeFormatFunc())
-		builder.WriteString("\t")
-		builder.WriteString(lev.StringColored())
-		if l.name != "" {
-			builder.WriteString("\t")
-			builder.WriteString(l.name)
-		}
-		builder.WriteString("\t")
-		if err != nil {
-			// TODO implement error writing
-		}
-		builder.WriteString(msg)
-		if fields != nil && len(fields) > 0 {
-			builder.WriteString("\t{")
-			for i, field := range fields {
-				builder.WriteString(field.String())
-				if i < len(fields)-1 {
-					builder.WriteString(",")
-				}
-			}
-			builder.WriteRune('}')
-		}
 	case JSON:
-		builder.WriteRune('{')
-		builder.WriteString(`"timestamp":"` + l.timeFormatFunc() + `",`)
-		builder.WriteString(`"severity":"` + l.level.name + `",`)
-		builder.Write([]byte(`"message":"` + msg + `"`))
-		if err != nil {
-			// TODO implement error and stack trace writing
-		}
-		builder.WriteRune('}')
+		return NewOutput(l.timeFormatFunc(), l.name, lev.String(), msg, err, fields...).JsonString()
+	default:
+		return NewOutput(l.timeFormatFunc(), l.name, lev.StringColored(), msg, err, fields...).ConsoleString()
 	}
-	builder.WriteString("\n")
-	return []byte(builder.String())
 }
