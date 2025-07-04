@@ -1,14 +1,20 @@
 package gologram
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 /**
  * @author  papajuan
  * @date    1/4/2025
  **/
+
+var (
+	replacer = strings.NewReplacer(`\n`, "", `"`, `'`, `\`, "")
+)
 
 type Field struct {
 	name string
@@ -64,8 +70,43 @@ func (f *Field) WithBool(val bool) *Field {
 	return f
 }
 
+func (f *Field) WithStringArr(val []string) *Field {
+	if val == nil {
+		f.val = "null"
+	} else if len(val) == 0 {
+		f.val = "[]"
+	} else {
+		result := bytes.NewBuffer([]byte{'['})
+		for _, s := range val {
+			result.Write(ToBytes(`"` + s + `",`))
+		}
+		f.val = result.String()[:result.Len()-1] + "]"
+	}
+	return f
+}
+
+func (f *Field) WithByteArr(val []byte) *Field {
+	if val == nil || len(val) == 0 {
+		f.val = "null"
+	} else {
+		f.val = fmt.Sprintf(`%s`, val)
+	}
+	return f
+}
+
+func (f *Field) WithAny(val interface{}) *Field {
+	f.val = fmt.Sprintf("%v", val)
+	return f
+}
+
+func (f *Field) WithByte(b byte) *Field {
+	f.val = strconv.FormatUint(uint64(b), 10)
+	return f
+}
+
 func (f *Field) String() string {
-	return `"` + f.name + `":"` + escapeJSON(f.val) + `"`
+
+	return `'` + f.name + `':'` + replacer.Replace(f.val) + `'`
 }
 
 func StringField(name, val string) *Field {

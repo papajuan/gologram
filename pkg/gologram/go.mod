@@ -1,3 +1,3 @@
 module gologram
 
-go 1.24rc1
+go 1.24.4

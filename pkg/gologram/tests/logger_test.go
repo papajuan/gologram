@@ -2,6 +2,7 @@ package tests
 
 import (
 	"errors"
+	"fmt"
 	"gologram"
 	"net/http"
 	"strings"
@@ -71,6 +72,27 @@ func BenchmarkConcat(b *testing.B) {
 			res += "8"
 			res += "9"
 			res += "10"
+		}
+	})
+	w := "World!"
+	one := "1"
+	two := "2"
+	three := "3"
+	four := "4"
+	five := "5"
+	six := "6"
+	seven := "7"
+	eight := "8"
+	nine := "9"
+	ten := "10"
+	b.Run("Concat with + 10", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = "Hello, " + w + one + two + three + four + five + six + seven + eight + nine + ten
+		}
+	})
+	b.Run("Concat with fmt 10", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = fmt.Sprintf("Hello, %s%s%s%s%s%s%s%s%s%s%s", w, one, two, three, four, five, six, seven, eight, nine, ten)
 		}
 	})
 	b.Run("Concat with strings.Builder 10", func(b *testing.B) {

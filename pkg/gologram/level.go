@@ -27,7 +27,7 @@ func NewLogLevel(level string) Level {
 }
 
 func newLogLevel(l Level) *logLevel {
-	return &logLevel{level: l, nameColored: l.StringColored(), name: l.String()}
+	return &logLevel{level: l, nameColored: l.stringColored(), name: l.String()}
 }
 
 type Level uint8
@@ -39,6 +39,19 @@ const (
 	WARN
 	ERROR
 )
+
+func (l Level) getSeverity() string {
+	switch l {
+	case TRACE, DEBUG:
+		return "DEBUG"
+	case WARN:
+		return "WARNING"
+	case ERROR:
+		return "ERROR"
+	default:
+		return "INFO"
+	}
+}
 
 // ANSI color codes
 const (
@@ -56,7 +69,7 @@ const (
 	trace = grey + "TRACE" + reset
 )
 
-func (l Level) StringColored() string {
+func (l Level) stringColored() string {
 	switch l {
 	case DEBUG:
 		return debug

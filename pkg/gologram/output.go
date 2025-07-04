@@ -1,7 +1,9 @@
 package gologram
 
 import (
+	"bytes"
 	"strings"
+	"unsafe"
 )
 
 /**
@@ -9,75 +11,83 @@ import (
  * @date    1/5/2025
  **/
 
-type output struct {
-	timestamp  string
-	severity   string
-	caller     string
-	message    string
-	stacktrace string
-	fields     []*Field
+type Output struct {
+	Timestamp  string   `json:"timestamp"`
+	Severity   string   `json:"severity"`
+	Message    string   `json:"message"`
+	Stacktrace string   `json:"stacktrace"`
+	Caller     string   `json:"caller"`
+	callerTab  string   `json:"-"`
+	Fields     []*Field `json:"fields"`
 }
 
-func NewOutput(format Format, ts, caller, severity, msg string, err *Err, fields ...*Field) *output {
-	var res output
-	if format == JSON {
-		res = output{fields: []*Field{
-			NewField("timestamp").WithString(ts),
-			NewField("severity").WithString(severity),
-			NewField("caller").WithString(caller),
-			NewField("message").WithString(msg),
-		}}
-		if err != nil {
-			res.fields = append(res.fields, NewField("stacktrace").WithString(err.String()))
+func newOutput(ts, caller, severity, msg string, err *Err, fields ...*Field) *Output {
+	var callerTab string
+	if caller == "" {
+		callerTab = "    "
+	} else if len(caller) < 15 {
+		l := 15 - len(caller)
+		sb := make([]byte, 0, l)
+		for i := 0; i < l; i++ {
+			sb = append(sb, ' ')
 		}
-		res.fields = append(res.fields, fields...)
+		callerTab = unsafe.String(unsafe.SliceData(sb), l)
 	} else {
-		res = output{
-			timestamp: ts,
-			severity:  severity,
-			caller:    caller,
-			message:   msg,
-			fields:    fields,
-		}
-		if err != nil {
-			res.stacktrace = err.String()
-		}
+		callerTab = " "
 	}
-	return &res
+	result := &Output{
+		Timestamp: ts,
+		Severity:  severity,
+		Message:   strings.ReplaceAll(msg, `"`, `'`),
+		Caller:    caller,
+		Fields:    fields,
+		callerTab: callerTab,
+	}
+	if err != nil {
+		result.Stacktrace = strings.ReplaceAll(err.String(), `"`, `'`)
+	}
+	return result
 }
 
-func (o *output) JsonString() []byte {
-	var builder strings.Builder
-	if o.fields != nil && len(o.fields) > 0 {
-		for i, field := range o.fields {
-			builder.WriteString(field.String())
-			if i < len(o.fields)-1 {
-				builder.WriteString(",")
-			}
-		}
-	}
-	return []byte("{" + builder.String() + "}\n")
+func (o *Output) jsonString() []byte {
+	return ToBytes(`{"timestamp":"` + o.Timestamp +
+		`","severity":"` + o.Severity +
+		`","stacktrace":"` + o.Stacktrace +
+		`","caller":"` + o.Caller +
+		`","message":"` + o.Caller + " " + o.Message + " " + o.StringFields() + "\"}\n")
 }
 
-func (o *output) ConsoleString() []byte {
-	var builder strings.Builder
-	builder.WriteString(o.timestamp + "\t" + o.severity)
-	if o.caller != "" {
-		builder.WriteString("\t" + o.caller)
-	}
-	builder.WriteString("\t" + o.message)
-	if o.stacktrace != "" {
-		builder.WriteString("\n" + o.stacktrace)
-	}
-	if o.fields != nil && len(o.fields) > 0 {
-		builder.WriteString("\t")
-		for i, field := range o.fields {
-			builder.WriteString(field.String())
-			if i < len(o.fields)-1 {
-				builder.WriteString(",")
+func (o *Output) StringFields() string {
+	var result string
+	if o.Fields != nil {
+		if l := len(o.Fields); l > 0 {
+			var sb bytes.Buffer
+			for i, field := range o.Fields {
+				sb.Write(ToBytes(field.String()))
+				if i < l-1 {
+					sb.WriteByte(',')
+				}
 			}
+			result = sb.String()
 		}
 	}
-	builder.WriteString("\n")
-	return []byte(builder.String())
+	return result
+}
+
+func (o *Output) consoleString() []byte {
+	sb := bytes.NewBuffer(ToBytes(o.Timestamp + "\t" + o.Severity))
+	if o.Caller != "" {
+		sb.Write(ToBytes("\t" + o.Caller))
+	}
+	sb.Write(ToBytes(o.callerTab + o.Message))
+	if o.Stacktrace != "" {
+		sb.Write(ToBytes("\n" + o.Stacktrace))
+	}
+	sb.WriteString(o.StringFields())
+	sb.WriteByte('\n')
+	return sb.Bytes()
+}
+
+func ToBytes(s string) []byte {
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }

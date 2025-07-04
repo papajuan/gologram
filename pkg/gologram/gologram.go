@@ -1,8 +1,10 @@
 package gologram
 
 import (
+	"fmt"
 	"gologram/buffer"
-	"sync"
+	"os"
+	"runtime"
 )
 
 /**
@@ -10,22 +12,47 @@ import (
  * @date    1/4/2025
  **/
 
-func Sync() error {
-	var wg sync.WaitGroup
-	wg.Add(2)
-	var res error
-	go func() {
-		err := buffer.Stdout().Sync()
-		if err != nil {
-			res = err
+var (
+	cfg *config
+	log *logger
+)
+
+func init() {
+	ll := NewLogLevel(os.Getenv("LOG_LEVEL"))
+	cfg = NewConfig().
+		WithLevel(ll).
+		WithFormat(NewLogFormat(os.Getenv("LOG_FORMAT"))).
+		WithTimeFormat(os.Getenv("LOG_TIME_FORMAT"))
+	log = New("Panic")
+}
+
+func Sync() {
+	err := buffer.Stdout().Sync()
+	if err != nil {
+		println(err)
+	}
+	err = buffer.Stderr().Sync()
+	if err != nil {
+		println(err)
+	}
+}
+
+func New(name string) *logger {
+	return cfg.Build().Named(name)
+}
+
+func Safe(f func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			// TODO improve
+			stackBuf := make([]byte, 1024)
+			length := runtime.Stack(stackBuf, false)
+			stack := make([]string, length)
+			for i, barr := range stackBuf[:length] {
+				stack[i] = string(barr)
+			}
+			log.Error("Recovered from panic", NewErr(fmt.Errorf("%v", r)).WithStack(stack))
 		}
 	}()
-	go func() {
-		err := buffer.Stderr().Sync()
-		if err != nil {
-			res = err
-		}
-	}()
-	wg.Wait()
-	return res
+	f()
 }
