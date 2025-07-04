@@ -1,4 +1,4 @@
-package buffer
+package gologram
 
 import (
 	"bufio"
@@ -42,22 +42,22 @@ type BufferedWriter struct {
 	once     sync.Once
 }
 
-// Initialize Stdout instance
-func Initialize() {
-	Stdout()
-	Stderr()
+// initialize stdout instance
+func initialize() {
+	stdout()
+	stderr()
 }
 
-// Stdout returns the singleton instance of BufferedWriter for Stdout.
-func Stdout() *BufferedWriter {
+// stdout returns the singleton instance of BufferedWriter for stdout.
+func stdout() *BufferedWriter {
 	onceOut.Do(func() {
 		stdoutInstance = newBufferedWriter(os.Stdout)
 	})
 	return stdoutInstance
 }
 
-// Stderr returns the singleton instance of BufferedWriter for Stderr.
-func Stderr() *BufferedWriter {
+// stderr returns the singleton instance of BufferedWriter for stderr.
+func stderr() *BufferedWriter {
 	onceErr.Do(func() {
 		stderrInstance = newBufferedWriter(os.Stderr)
 	})

@@ -2,7 +2,6 @@ package gologram
 
 import (
 	"fmt"
-	"gologram/buffer"
 	"os"
 	"runtime"
 )
@@ -27,11 +26,11 @@ func init() {
 }
 
 func Sync() {
-	err := buffer.Stdout().Sync()
+	err := stdout().Sync()
 	if err != nil {
 		println(err)
 	}
-	err = buffer.Stderr().Sync()
+	err = stderr().Sync()
 	if err != nil {
 		println(err)
 	}
