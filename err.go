@@ -55,6 +55,9 @@ func newErr(err error) *Err {
 	}
 	var ex *Err
 	if errors.As(err, &ex) {
+		if ex == nil {
+			return nil
+		}
 		ex.stack = append(ex.stack, getNestedPath())
 		return ex
 	}
