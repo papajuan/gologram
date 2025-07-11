@@ -83,7 +83,7 @@ func (o *Output) consoleString() []byte {
 	if o.Stacktrace != "" {
 		sb.Write(ToBytes("\n" + o.Stacktrace))
 	}
-	sb.WriteString(o.StringFields())
+	sb.WriteString(" " + o.StringFields())
 	sb.WriteByte('\n')
 	return sb.Bytes()
 }
