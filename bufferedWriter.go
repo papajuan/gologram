@@ -36,7 +36,7 @@ var (
 // BufferedWriter is a high-performance buffered writer inspired by Uber Zap.
 type BufferedWriter struct {
 	writer   *bufio.Writer
-	logQueue chan []byte
+	logQueue chan logEntry
 	stopChan chan struct{}
 	closed   int32 // Atomic flag to check if logQueue is closed
 	once     sync.Once
@@ -68,7 +68,7 @@ func stderr() *BufferedWriter {
 func newBufferedWriter(output *os.File) *BufferedWriter {
 	bsw := &BufferedWriter{
 		writer:   bufio.NewWriterSize(output, 4096), // 4KB buffer
-		logQueue: make(chan []byte, 10000),          // Large buffer for async logging
+		logQueue: make(chan logEntry, 10000),
 		stopChan: make(chan struct{}),
 		closed:   0, // Not closed
 	}
@@ -96,7 +96,7 @@ func (bsw *BufferedWriter) Write(p []byte) (int, error) {
 	copy(buf, p) // Copy log entry
 	// Enqueue log message (non-blocking)
 	select {
-	case bsw.logQueue <- buf:
+	case bsw.logQueue <- logEntry{data: buf}:
 	default:
 		// Drop log if queue is full (prevents deadlock)
 	}
@@ -106,15 +106,35 @@ func (bsw *BufferedWriter) Write(p []byte) (int, error) {
 
 // processLogQueue continuously writes logs from the channel to bufio.Writer.
 func (bsw *BufferedWriter) processLogQueue() {
-	for log := range bsw.logQueue {
-		if bsw.writer.Available() < len(log) {
-			bsw.writer.Flush() // Flush only when buffer is full
+	for entry := range bsw.logQueue {
+		if entry.flush != nil {
+			if err := bsw.writer.Flush(); err != nil {
+				println(err)
+			}
+			close(entry.flush)
+			continue
 		}
-		bsw.writer.Write(log)
-		// Return buffer to pool properly
-		if cap(log) == 1024 {
-			smallBufferPool.Put(log[:1024]) // Reset before returning
+
+		if bsw.writer.Available() < len(entry.data) {
+			if err := bsw.writer.Flush(); err != nil {
+				println(err)
+			}
 		}
+		if _, err := bsw.writer.Write(entry.data); err != nil {
+			println(err)
+		}
+
+		// Return buffer to pool
+		switch cap(entry.data) {
+		case 1024:
+			smallBufferPool.Put(entry.data[:1024])
+		case 8192:
+			largeBufferPool.Put(entry.data[:8192])
+		}
+	}
+	// Final flush when logQueue is closed
+	if err := bsw.writer.Flush(); err != nil {
+		println(err)
 	}
 }
 
@@ -124,31 +144,21 @@ func (bsw *BufferedWriter) Sync() error {
 		// Mark as closed
 		atomic.StoreInt32(&bsw.closed, 1)
 
-		close(bsw.stopChan) // Stop background flusher
+		// Stop background flusher
+		close(bsw.stopChan)
 
-		// Drain remaining logs before closing the queue
-		go func() {
-			for log := range bsw.logQueue {
-				bsw.writer.Write(log)
-				switch cap(log) {
-				case 1024:
-					smallBufferPool.Put(log[:1024]) // Reset buffer before returning
-				case 8192:
-					largeBufferPool.Put(log[:8192]) // Reset buffer before returning
-				}
-			}
-			bsw.writer.Flush()
-		}()
-
-		close(bsw.logQueue) // Now safe to close the channel
+		// Close queue, processLogQueue will drain and flush
+		close(bsw.logQueue)
 	})
-
 	return bsw.flush()
 }
 
 // flush ensures all buffered logs are written to stdout.
 func (bsw *BufferedWriter) flush() error {
-	return bsw.writer.Flush()
+	ch := make(chan struct{})
+	bsw.logQueue <- logEntry{flush: ch}
+	<-ch
+	return nil
 }
 
 // backgroundFlusher periodically flushes the buffer.

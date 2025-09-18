@@ -3,11 +3,12 @@ package tests
 import (
 	"errors"
 	"fmt"
-	"gologram"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/papajuan/gologram"
 )
 
 /**
@@ -24,12 +25,14 @@ func BenchmarkLoggerError(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		l.Error("Hello, World! ERROR", gologram.NewErr(errors.New("ereer")).WithCode(http.StatusUnprocessableEntity))
 	}
+	b.ReportAllocs()
 }
 
 func BenchmarkLoggerInfo(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		l.Info("Hello, World! ERROR", gologram.NewField("testname").WithString("testvalue"))
 	}
+	b.ReportAllocs()
 }
 
 func TestLogger(t *testing.T) {
@@ -59,6 +62,7 @@ func TestLogger(t *testing.T) {
 }
 
 func BenchmarkConcat(b *testing.B) {
+	b.ReportAllocs()
 	b.Run("Concat with +10", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			res := "Hello, " + "World!"
