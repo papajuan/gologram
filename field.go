@@ -95,7 +95,7 @@ func (f *Field) WithByteArr(val []byte) *Field {
 }
 
 func (f *Field) WithAny(val interface{}) *Field {
-	f.val = fmt.Sprintf("%v", val)
+	f.val = fmt.Sprintf("%+v", val)
 	return f
 }
 
